@@ -38,15 +38,16 @@ type worker struct {
 }
 
 type Config struct {
-	MinIdle      int
-	MaxIdle      int
-	MaxTotal     int
-	WASM         []byte
-	FSConfig     wazero.FSConfig
-	Stdout       io.Writer
-	Stderr       io.Writer
-	RandomSource io.Reader
-	ReuseWorkers bool // WebAssembly runtime by default doesn't use workers because creating new instances is cheap.
+	MinIdle       int
+	MaxIdle       int
+	MaxTotal      int
+	WASM          []byte
+	FSConfig      wazero.FSConfig
+	Stdout        io.Writer
+	Stderr        io.Writer
+	RandomSource  io.Reader
+	ReuseWorkers  bool // WebAssembly runtime by default doesn't use workers because creating new instances is cheap.
+	WazeroRuntime wazero.Runtime
 }
 
 type pdfiumPool struct {
@@ -108,7 +109,10 @@ func Init(config Config) (pdfium.Pool, error) {
 
 	poolContext := context.WithValue(context.Background(), experimental.FunctionListenerFactoryKey{}, logging.NewLoggingListenerFactory(os.Stdout))
 	poolContext = context.Background()
-	runtime := wazero.NewRuntimeWithConfig(poolContext, wazero.NewRuntimeConfig())
+	runtime := config.WazeroRuntime
+	if runtime == nil {
+		runtime = wazero.NewRuntimeWithConfig(poolContext, wazero.NewRuntimeConfig())
+	}
 
 	// Import WASI features.
 	if _, err := wasi_snapshot_preview1.Instantiate(poolContext, runtime); err != nil {
